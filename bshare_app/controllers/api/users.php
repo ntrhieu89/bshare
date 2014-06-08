@@ -15,24 +15,24 @@ class Users extends REST_Controller {
 		
 		// using session
 		$this->load->library('session');
+		
+		// form validation
+		$this->load->library('form_validation');
 	}
 	
 	/**
 	 * Create a new account
 	 */
-	public function signup_get() {
-		// get data
-		$username = $this->get('username');
-		$email = $this->get('email');
-		$password = $this->get('password');
-		
-		if ($username == false || $password == false || $email == false)
-			$this->response(null, 400);
-			
-		if ($this->user_model->user_exists($username) ||
-				$this->user_model->user_exists($email)) {
-			$this->response(null, 409);		// HTTP code 409 for conflict
+	public function signup_post() {
+		// check validation	
+		if ($this->form_validation->run('signup') == false) {
+			$this->response(validation_errors(), 400);
 		}
+		
+		// get data
+		$username = $this->post('username');
+		$email = $this->post('email');
+		$password = $this->post('password');
 		
 		if ($this->user_model->create_user($username, $email, $password) == TRUE)
 			$this->response(null, 200);
@@ -44,19 +44,17 @@ class Users extends REST_Controller {
 	/**
 	 * Login to the system
 	 */
-	public function login_get() {		
+	public function login_post() {	
 		// get data
-		if ($this->get('username') != false) {
-			$username_or_email = $this->get('username');
-		} elseif ($this->get('email') != false) {
-			$username_or_email = $this->get('email');
+		if ($this->form_validation->run('login_username') == true) {
+			$username_or_email = $this->post('username');
+		} else if ($this->form_validation->run('login_email') == true) {
+			$email = $this->post('email');
+		} else {
+			$this->response(validation_erros(), 400);
 		}
 		
-		$password = $this->get('password');
-		
-		if ($username_or_email == false || $password == false) {
-			$this->response(null, 400);
-		}
+		$password = $this->post('password');
 		
 		// get user
 		$user = $this->user_model->get_user($username_or_email);
@@ -87,15 +85,116 @@ class Users extends REST_Controller {
 		}		
 	}
 	
+
+	/**
+	 * Log out.
+	 */
+	public function logout_get() {
+		if (!$this->_check_authorization())
+			$this->response(null, 404);
+	
+		// performs log out
+		// remove session
+		$this->session->sess_destroy();
+	
+		$this->response(null, 200);
+	}
+	
+	/**
+	 * Sets avatar
+	 */
+	public function setavatar_post() {
+		if (!$this->_check_authorization()) {
+			$this->response(null, 404);
+		}
+		
+		// get user id from session
+		$userid = $this->session->userdata('user_data')['userid'];
+		
+		// change the uploaded file name
+		$data = $_FILES['avatar'];		
+		
+		if ($data == false || $data['name'] == false)
+			$this->response($data, 400);
+		
+		$file_name = $data['name'];
+		$new_file_name = $userid.'_avt.'.pathinfo($file_name, PATHINFO_EXTENSION);
+		
+		// set upload directory
+		$upload_dir = 'bshare_app/files/avatars/';
+		$upload_file = $upload_dir.$new_file_name;
+		
+		// move upload file
+		if (move_uploaded_file($_FILES['avatar']['tmp_name'], $upload_file)) {
+			// update database
+			if ($this->user_model->set_avatar($userid, $new_file_name)) {
+				$this->response($this->config->base_url().$upload_file, 200);
+			}
+		}
+		
+		$this->response(null, 400);
+	}
+	
+	/**
+	 * Sets alias. If new alias is identical with the old alias, 
+	 * this function will return false.
+	 */
+	public function setalias_post() {
+		if (!$this->_check_authorization()) {
+			$this->response(null, 404);
+		}
+		
+		// get user id from session
+		$userid = $this->session->userdata('user_data')['userid'];
+				
+		if ($this->form_validation->run('set_alias') == false)
+			$this->response(null, 400);
+		
+		$alias = $this->post('alias');
+		
+		if ($this->user_model->set_alias($userid, $alias) == true)
+			$this->response(null, 200);
+		
+		$this->response(null, 400);
+	}
+	
+	public function changepass_post() {
+		if (!$this->_check_authorization()) {
+			$this->response(null, 404);
+		}
+
+		// get user id from session
+		$userid = $this->session->userdata('user_data')['userid'];
+
+		if ($this->form_validation->run('change_password') == false)
+			$this->response(null, 400);	
+
+		$oldpass = $this->post('oldpass');
+		$newpass = $this->post('newpass');
+		
+		if ($oldpass === $newpass)
+			$this->response(null, 200);
+		
+		if ($this->user_model->change_password($userid, $oldpass, $newpass) == true)
+			$this->response(null, 200);
+		else
+			$this->response(null, 400);
+	}
+	
 	/**
 	 * Invites another member to become friend
 	 */
-	public function invite_friend_get() {
-		$inviterid = $this->get('inviterid');
-		$inviteeid = $this->get('inviteeid');
+	public function invitefriend_post() {
+		if (!$this->_check_authorization()) {
+			$this->response(null, 404);
+		}
 		
-		if ($inviterid == false || inviteeid == false)
+		if ($this->form_validation->run('invite_friend') == false) {
 			$this->response(null, 400);
+		}
+				
+		$inviterid = $this->session->userdata('user_data')['userid'];
+		$inviteeid = $this->post('inviteeid');
 		
 		if ($this->user_model->invite_friend($inviterid, $inviteeid) == false) {
 			$this->response(null, 409);
@@ -104,12 +203,20 @@ class Users extends REST_Controller {
 		}
 	}
 	
+	/**
+	 * The invitee accepts friend invitation.
+	 */
 	public function accept_friend_get() {
-		$inviterid = $this->get('inviterid');
-		$inviteeid = $this->get('inviteeid');
+		if (!$this->_check_authorization()) {
+			$this->response(null, 404);
+		}
 		
-		if ($inviterid == false || inviteeid == false)
+		if ($this->form_validation->run('accept_reject_friend') == false) {
 			$this->response(null, 400);
+		}
+		
+		$inviterid = $this->post('inviterid');
+		$inviteeid = $this->session->userdata('user_data')['userid'];
 
 		if ($this->user_model->accept_friend($inviterid, $inviteeid) == false) {
 			$this->response(null, 409);
@@ -118,12 +225,20 @@ class Users extends REST_Controller {
 		}		
 	}
 	
+	/**
+	 * The invitee rejects the friend invitation.
+	 */
 	public function reject_friend_get() {
-		$inviterid = $this->get('inviterid');
-		$inviteeid = $this->get('inviteeid');
+		if (!$this->_check_authorization()) {
+			$this->response(null, 404);
+		}
 		
-		if ($inviterid == false || inviteeid == false)
+		if ($this->form_validation->run('accept_reject_friend') == false) {
 			$this->response(null, 400);
+		}
+		
+		$inviterid = $this->post('inviterid');
+		$inviteeid = $this->session->userdata('user_data')['userid'];
 		
 		if ($this->user_model->reject_friend($inviterid, $inviteeid) == false) {
 			$this->response(null, 409);
@@ -132,32 +247,26 @@ class Users extends REST_Controller {
 		}		
 	}
 	
+	/**
+	 * A user thaws the friendship with one of his friends.
+	 */
 	public function unfriend_get() {
-		$inviterid = $this->get('inviterid');
-		$inviteeid = $this->get('inviteeid');
+		if (!$this->_check_authorization()) {
+			$this->response(null, 404);
+		}
 		
-		if ($inviterid == false || inviteeid == false)
+		if ($this->form_validation->run('unfriend') == false) {
 			$this->response(null, 400);
+		}
 		
-		if ($this->user_model->unfriend($inviterid, $inviteeid) == false) {
+		$friendid2 = $this->post('inviterid');
+		$friendid1 = $this->session->userdata('user_data')['userid'];
+		
+		if ($this->user_model->unfriend($friendid1, $friendid2) == false) {
 			$this->response(null, 409);
 		} else {
 			$this->response(null, 200);
 		}		
-	}
-	
-	/**
-	 * Log out.
-	 */
-	public function logout_get() {		
-		if (!$this->_check_authorization())
-			$this->response(null, 404);
-
-		// performs log out
-		// remove session
-		$this->session->sess_destroy();
-		
-		$this->response(null, 200);
 	}
 	
 	private function _check_authorization() {
@@ -168,7 +277,7 @@ class Users extends REST_Controller {
 		else {
 			$sess_user_id = $user_data['userid'];
 			
-			if ($sess_user_id == false)
+			if ($sess_user_id == false || preg_match('/^[1-9][0-9]*$/D', $sess_user_id) == false)
 				return false;
 			else
 				return true;

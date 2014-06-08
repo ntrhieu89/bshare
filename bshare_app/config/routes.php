@@ -39,7 +39,17 @@
 */
 
 $route['default_controller'] = "welcome";
+
+
+$route['user'] = "welcome";
+$route['user/(:any)'] = 'api/users/$1';
+
+$route['bill'] = "welcome";
+$route['bill/(:any)'] = 'api/bills/$1';
+
 $route['404_override'] = '';
+
+
 
 
 /* End of file routes.php */
