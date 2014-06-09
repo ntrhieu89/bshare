@@ -43,9 +43,11 @@ $route['default_controller'] = "welcome";
 
 $route['user'] = "welcome";
 $route['user/(:any)'] = 'api/users/$1';
+$route['user/(:any)/format/(:any)'] = 'api/users/$1/format/$2';
 
 $route['bill'] = "welcome";
 $route['bill/(:any)'] = 'api/bills/$1';
+$route['bill/(:any)/format/(:any)'] = 'api/bills/$1/format/$2';
 
 $route['404_override'] = '';
 

@@ -35,7 +35,7 @@ class Users extends REST_Controller {
 		$password = $this->post('password');
 		
 		if ($this->user_model->create_user($username, $email, $password) == TRUE)
-			$this->response(null, 200);
+			$this->response('OK', 200);
 		else {
 			$this->response(null, 500);		// HTTP code 500 for server error
 		}
