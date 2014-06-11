@@ -49,6 +49,10 @@ $route['bill'] = "welcome";
 $route['bill/(:any)'] = 'api/bills/$1';
 $route['bill/(:any)/format/(:any)'] = 'api/bills/$1/format/$2';
 
+$route['admin'] = "welcome";
+$route['admin/(:any)'] = 'api/admin/$1';
+$route['admin/(:any)/format/(:any)'] = "api/admin/$1/format/$2";
+
 $route['404_override'] = '';
 
 

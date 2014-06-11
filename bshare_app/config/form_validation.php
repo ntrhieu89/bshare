@@ -70,23 +70,13 @@ $config = array(
 			'rules' => 'trim|required|max_length[128]|xss_clean|alpha_dash'			
 		)
 	),
-    'set_password' => array(
-        array(
-            'field' => 'oldpassword',
-            'label' => 'Old Password',
-            'rules' => 'trim|required|max_length[128]|xss_clean'
-        ),
-        array(
-            'field' => 'password',
-            'label' => 'Password',
-            'rules' => 'trim|required|max_length[128]|xss_clean|matches[repeatpw]|callback__change_password'
-        ),
-        array(
-            'field' => 'repeatpw',
-            'label' => 'Repeat Password',
-            'rules' => 'trim|required|max_length[128]|xss_clean'
-        )
-    ),
+	'get_user' => array(
+		array(
+			'field' => 'userid',
+			'label' => 'User ID',
+			'rules' => 'required|integer|greater_than[0]'	
+		),
+	),
     'forget_password_email' => array(
         array(
             'field' => 'email',

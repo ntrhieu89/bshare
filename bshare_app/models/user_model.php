@@ -122,6 +122,51 @@ class User_model extends CI_Model {
 		return false;
 	}
 	
+	public function get_user_by_id($userid) {
+		$query = $this->db->query('select * from users where userid='.$userid.'');
+		
+		if ($query == true && $query->num_rows() == 1) {
+			return get_object_vars($query->result()[0]);
+		} else 
+			return false;
+	}
+	
+	/**
+	 * Checks friendship of user 2 with the view of user 1.
+	 * For example, if the return status = 1, it means the user 1 has sent friendship request
+	 * but still does not have confirmation from user 2.
+	 * @param unknown $user1
+	 * @param unknown $user2
+	 */
+	public function check_friendship($user1id, $user2id) {
+		if ($user1id === $user2id)
+			return 'owner';
+		
+		$query = $this->db->query('select * from friendship where inviterid='.$user1id.' and inviteeid='.$user2id.'');
+		
+		if ($query != null && $query->num_rows() == 1) {
+			$friendship = get_object_vars($query->result()[0]);		
+			
+			if ($friendship['status'] == 1)
+				return 'invitee';
+			else if ($friendship['status'] == 2)
+				return 'friend';			
+		}
+		
+		$query = $this->db->query('select * from friendship where inviterid='.$user2id.' and inviteeid='.$user1id.'');
+		
+		if ($query != null && $query->num_rows() == 1) {
+			$friendship = get_object_vars($query->result()[0]);
+				
+			if ($friendship['status'] == 1)
+				return 'inviter';
+			else if ($friendship['status'] == 2)
+				return 'friend';
+		}		
+		
+		return 'stranger';
+	}
+	
 	/** functions supported for social network **/
 	
 	public function get_user($username_or_email) {

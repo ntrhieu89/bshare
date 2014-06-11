@@ -95,7 +95,8 @@ class Users extends REST_Controller {
 	
 		// performs log out
 		// remove session
-		$this->session->sess_destroy();
+		$array_items = array('userid' => '','username' => '','email' => '');
+		$this->session->unset_userdata($array_items);
 	
 		$this->response(null, 200);
 	}
@@ -118,6 +119,11 @@ class Users extends REST_Controller {
 			$this->response($data, 400);
 		
 		$file_name = $data['name'];
+		$ext = pathinfo($file_name, PATHINFO_EXTENSION);
+		
+		if (preg_match("\.(?i)(jpg|png|gif|bmp)", $ext, $match) == false)
+			$this->response($data, 400);
+
 		$new_file_name = $userid.'_avt.'.pathinfo($file_name, PATHINFO_EXTENSION);
 		
 		// set upload directory
@@ -179,6 +185,45 @@ class Users extends REST_Controller {
 			$this->response(null, 200);
 		else
 			$this->response(null, 400);
+	}
+	
+	/**
+	 * Gets information of a user.
+	 * Currently required user to log in in order to use this function
+	 */
+	public function getuser_post() {
+		if (!$this->_check_authorization()) {
+			$this->response(null, 404);
+		}		
+		
+		// runs validation to validate the user input
+		if ($this->form_validation->run('get_user') == false)
+			$this->response(null, 400);
+		
+		$requesterid = $this->session->userdata('user_data')['userid'];
+		$userid = $this->post('userid');
+		
+		$user = $this->user_model->get_user_by_id($userid);
+		
+		if ($user == null)
+			return $this->response(null, 400);
+		
+		// gets the friendship status between these two user
+		$status = $this->user_model->check_friendship($requesterid, $user['userid']);
+
+		$data = array(
+			'friendship' => $status,
+			'userid' => $user['userid'],
+			'username' => $user['username'],
+			'email' => $user['email'],
+			'alias' => $user['alias'],
+			'avatar' => $user['avatar'],
+			'jointime' => $user['jointime'],
+			'lastupdatetime' => $user['lastupdatetime'],
+			'lastlogintime' => $user['lastlogintime'],			
+		);
+		
+		return $this->response($data, 200);
 	}
 	
 	/**
